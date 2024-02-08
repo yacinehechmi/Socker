@@ -129,11 +129,6 @@ class Docker(path: String, hostAddress: String) {
                    Driver: String, Mode: String, RW: Boolean, Propagation: String) derives ReadWriter
 
   case class Container(Id: String, Names: List[String], Image: String, ImageID: String,
-                       Command: String, Created: Long, State: String, Status: String,
-                       HostConfig: Map[String, String], NetworkSettings: Map[String, Map[String, Driver]],
-                       Ports: List[Port], Labels: Map[String, String], Mounts: List[Mount]) derives ReadWriter {
-    // /v1.43/containers/{id}/kill
-    //  def kill() = ???
     Command: String, Created: Long, State: String, Status: String,
     HostConfig: Map[String, String], NetworkSettings: Map[String, Map[String, Driver]],
     Ports: List[Port], Labels: Map[String, String], Mounts: List[Mount]) derives ReadWriter {
@@ -167,9 +162,8 @@ class Docker(path: String, hostAddress: String) {
     // /v1.43/containers/{id}/logs
     //  def logs() = ???
 
-    // /v1.43/containers/{id}/stats
-    //  def stats() = ???
-    private val _endpoint = "/v1.43/containers"
+      // /v1.43/containers/{id}/stats
+      //  def stats() = ???
 
 //    def stop(): Unit = sendRequest[String]("POST", s"${_endpoint}/${this.Id}/stop")
 
