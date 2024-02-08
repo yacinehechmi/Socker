@@ -187,7 +187,11 @@ class Socket(path: Path){
   }
 
   protected def read(): String = recurseReader(_reader, CharBuffer.allocate(2048), StringBuilder(), true, 0)
-  protected def write(request: String): Unit = _writer.write(request); _writer.flush()
+
+  protected def write(request: String): Unit = {
+    _writer.write(request)
+    _writer.flush()
+  }
 
   protected def release(): Unit = {
     _channel.close()
