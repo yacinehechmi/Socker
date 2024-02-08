@@ -31,20 +31,33 @@ class Docker(path: String, hostAddress: String) {
   def close(): Unit = _http.close()
 
   /* POST */
-  // /v1.43/containers/create
-//  def createContainer(name: String, platform: String = null,
-//                      config: PostContainer): String = {
-//    _socket.write(
-//      _host,
-//      _post,
-//      s"$_createContainersEndpoint?name=$name",
-//      serialize[PostContainer](config) match {
-//      case Success(postContainer) => println(postContainer); postContainer
-//      case Failure(e) => throw new RuntimeException(e)
-//    })
-//
-//    _socket.read()
-//  }
+ // /v1.43/containers/create
+   // def createContainer(name: String,
+                       // platform: String = null,
+                       // config: PostContainer = null): Option[String] = {
+     // val req = Request(_createContainersEndpoint, _host, Map("name" -> name))
+     // val (header, body) = _http.get(req)
+     // body match {
+       // case Some(body) => Some(body)
+       // case None => None
+     // }
+   // }
+ 
+
+ //  def createContainer(name: String, platform: String = null,
+ //                      config: PostContainer): String = {
+ //    _socket.write(
+ //      _host,
+ //      _post,
+ //      s"$_createContainersEndpoint?name=$name",
+ //      serialize[PostContainer](config) match {
+ //      case Success(postContainer) => println(postContainer); postContainer
+ //      case Failure(e) => throw new RuntimeException(e)
+ //    })
+ //
+ //    _socket.read()
+ //  }
+ // forwarding request to Socket
 
   /* GET */
   // /v1.43/info
