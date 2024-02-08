@@ -1,6 +1,6 @@
 # Welcome to Socker
 
-Socker is [Docker](https://docs.docker.com/get-started/overview/) SDK implemented in [Scala](https://www.scala-lang.org/).
+Socker is a [Docker](https://docs.docker.com/get-started/overview/) SDK implemented in [Scala](https://www.scala-lang.org/).
 It provides a fast and secure connection through [Unix Domain Sockets](https://en.wikipedia.org/wiki/Unix_domain_socket) in future versions it will also support HTTP connection, inspired by [Docker SDK for Python](https://docker-py.readthedocs.io/en/stable/)
 
 ---
