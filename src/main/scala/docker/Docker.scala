@@ -4,12 +4,15 @@ import upickle.default._
 import client._
 
 import scala.util.{Failure, Success, Try}
-import java.nio.CharBuffer
-import geny.Generator.End
 
-// 1- finish all case classes for Images and networks
-// 2- build methods for each parent class
-// 3- implement a trait to take case classes out of Docker class
+/*
+-------------- TODO ---------------------
+1. finish working on an MVP (X)
+2. finish all case classes for Images and networks 
+3. build methods for each parent class to fulfill each endpoint 
+4. work on filters and parameters of each endpoint
+*/
+
 
 class Docker(path: String, hostAddress: String) {
   private given Path(path)
