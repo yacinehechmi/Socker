@@ -22,21 +22,20 @@ case class Path(path: String)
 enum Method:
   case GET, POST, DELETE, HEAD, PUT
 
-final case class Header(method: Method,
-                        userAgent: String,
-                        accept: String,
-                        acceptLanguage: String,
-                        acceptEncoding: String,
-                        contentType: String,
-                        contentLength: Int,
-                        xRegistryAuth: String)
+final case class Header(response: String = null,
+  apiVersion: String = null,
+  contentType: String = null,
+  dockerExperimental: String = null,
+  oStype: String = null,
+  server: String = null,
+  date: String = null,
+  transferEncoding: String = null)
 
-final case class Request(method: Method,
-                         uri: String,
-                         host: String,
-                         params: Map[String, String] = null,
-                         body: String = null,
-                         auth: Map[String, String] = null)
+final case class Request(uri: String,
+  host: String = null,
+  params: Map[String, Boolean | String | Int] = null,
+  body: String = null,
+  auth: Map[String, String] = null)
 
 class HttpSocket(implicit path: Path) extends Socket(path) {
 
