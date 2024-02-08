@@ -131,15 +131,14 @@ class HttpSocket(implicit path: Path) extends Socket(path) {
         Content-Length:${body.length}\r\n\r\n$body\r\n\r\n""".strip
     }
   }
-}
-
 
   private def encodeBase64(auth: Map[String, String]): String =
     Base64.getEncoder.encodeToString(
       auth.map((x,y) => s""""$x":"$y"""".trim)
         .mkString("{", ",", "}")
         .getBytes(StandardCharsets.UTF_8)
-    )
+      )
+
   private def decodeBase64(msg: String): String = {
     val decoded = Base64.getDecoder.decode(msg)
     new String(decoded, StandardCharsets.UTF_8)
