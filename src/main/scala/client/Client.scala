@@ -89,7 +89,24 @@ class HttpSocket(implicit path: Path) extends Socket(path) {
   }
   // receive
 
-    (header, Option(body))
+  private def sendAndReceive(request: Request, method: Method): (Option[Header], Option[String]) = {
+    write(formatRequest(request, method))
+    val response = read()
+    println(response)
+    val headerString = response.substring(0, response.indexOf("\r\n\r\n"))
+    val body = response.substring(response.indexOf("\r\n\r\n"), response.length)
+
+    // check if "[" is existing and its before "{" same thing for "{"
+    (body.contains("["), body.contains("{")) match {
+      case (true, false) => (parseHeader(headerString), Some(body.substring(body.indexOf("["), body.lastIndexOf("]") + 1)))
+      case (false, true) => (parseHeader(headerString), Some(body.substring(body.indexOf("{"), body.lastIndexOf("}") + 1)))
+      case (false, false) => (parseHeader(headerString), None)
+      case (true, true) =>
+        if body.indexOf("[") < body.indexOf("{") then
+          (parseHeader(headerString), Some(body.substring(body.indexOf("["), body.lastIndexOf("]") + 1)))
+        else
+          (parseHeader(headerString), Some(body.substring(body.indexOf("{"), body.lastIndexOf("}") + 1)))
+    }
   }
 
 //  private def formatRequest(host: String,
