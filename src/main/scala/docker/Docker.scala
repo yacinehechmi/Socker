@@ -102,24 +102,19 @@ class Docker(path: String, hostAddress: String) {
   }
 
 
-  // this should be replaced by /container/json?id=<id>
-//  def getContainer(name: String = "", id: String = ""): Container = {
-//    (name.isBlank, id.isBlank) match {
-//      case (false, true) =>
-//        val containers = listContainers().get.filter(_.Names.contains(s"/$name"))
-//        if containers.isEmpty then
-//          println(s"[socker:getContainer] could not find container with name $name")
-//          null
-//        else containers.head
-//      case (true, false) =>
-//        val containers = listContainers().get.filter(_.Id.startsWith(id))
-//        if containers.isEmpty then
-//          println(s"[socker:getContainer] could not find container with id $id")
-//          null
-//        else containers.head
-//      case _ => println(s"[socker:getContainer] please provide a container id or name"); null
-//    }
-//  }
+// this should be replaced by /container/json?id=<id>
+  def getContainer(name: String = "",
+                   id: String = "",
+                   listAll: Boolean = true): Option[List[Container]] = {
+    (name.isBlank, id.isBlank) match {
+      case (false, true) =>
+        send[List[Container]](Request(_containersEndpoint, _host, Map("all" -> listAll, "filters" -> s"""{"name":["$name"]}""")), _http.get)
+      case (true, false) =>
+        send[List[Container]](Request(_containersEndpoint, _host, Map("all" -> listAll, "filters" -> s"""{"id": ["$id"]}""")), _http.get)
+      case _ => println(s"[docker:getContainer] please provide a container id or name"); null
+    }
+  }
+
 
 // Container class
   case class Port(IP: String = "", PrivatePort: Int = 0,
