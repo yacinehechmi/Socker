@@ -166,24 +166,24 @@ class Socket(path: Path){
                                   result: StringBuilder,
                                   canRead: Boolean,
                                   endOfBuffer: Int): String = {
-    if (!canRead && endOfBuffer < 2048) result.toString
-    else {
-      val maybeEob = Try(reader.read(buffer)) match {
-        case Success(endOfBuffer) => endOfBuffer
-        case Failure(e) => e match {
-          case e: IOException => throw new IOException
-          case e: NullPointerException => throw new NullPointerException
-          case e: ReadOnlyBufferException => throw new ReadOnlyBufferException
+      if (!canRead && endOfBuffer < 2048) result.toString
+      else {
+        val maybeEob = Try(reader.read(buffer)) match {
+          case Success(endOfBuffer) => endOfBuffer
+          case Failure(e) => e match {
+            case e: IOException => throw new IOException
+            case e: NullPointerException => throw new NullPointerException
+            case e: ReadOnlyBufferException => throw new ReadOnlyBufferException
+          }
         }
-      }
-      val canReadFromSocket = Try(reader.ready) match {
-        case Success(canReadInfo) => canReadInfo
-        case Failure(e) => throw new IOException
-      }
+        val canReadFromSocket = Try(reader.ready) match {
+          case Success(canReadInfo) => canReadInfo
+          case Failure(e) => throw new IOException
+        }
 
-      result ++= buffer.flip.toString
-      recurseReader(reader, buffer, result, canReadFromSocket, maybeEob)
-    }
+        result ++= buffer.flip.toString
+        recurseReader(reader, buffer, result, canReadFromSocket, maybeEob)
+      }
   }
 
   protected def read(): String = recurseReader(_reader, CharBuffer.allocate(2048), StringBuilder(), true, 0)
