@@ -96,11 +96,10 @@ class Docker(path: String, hostAddress: String) {
     send[List[Network]](Request(_networksEndpoint, _host), _http.get)
   }
 
-  // /v1.43/volumes
-//  def listVolumes(): Option[VolumesWrapper] = {
-//    _socket.write(_host, _get, s"${_volumesEndpoint}")
-//    getResponse[VolumesWrapper]
-//  }
+// /v1.43/volumes
+  def listVolumes(): Option[List[Volumes]] = {
+    send[List[Volumes]](Request(_volumesEndpoint, _host), _http.get)
+  }
 
 
   // this should be replaced by /container/json?id=<id>
