@@ -2,78 +2,86 @@ import docker.Docker
 
 object Main {
   def api(docker: Docker): Unit = {
-//    val broker = docker.getContainer(name = "broker")
-    val newContainer = docker.PostContainer(Image = "hello-world", User = "ls", Domainname = "yacinescala")
-//    println(docker.createContainer(name = "vovov", config = newContainer))
-//    if (broker.isInstanceOf[docker.Container]) {
-//      broker.Names foreach println
-//    }
+    // docker version
+    println(docker.version())
+
     // list containers
-//    docker.listContainers().get match {
-//      case null => println("nothing")
-//      case value => value.foreach { x =>
-//        x.Names foreach println
-//      }
-//    }
-//    println("----------------------")
+    docker.listContainers().get match {
+      case null => println("no containers")
+      case containers => containers.foreach { x =>
+        x.Names foreach println
+      }
+    }
+
+    //    println("----------------------")
 
     // list images
-//    docker.listImages().get match {
-//      case images => images.foreach { image =>
-//        println(image.RepoTags)
-//        println(image.Containers)
-//      }
-//    }
-//    println("----------------------")
+    docker.listImages().get match {
+      case null => println("no images")
+      case images => images.foreach {img =>
+        img.RepoTags foreach println
+      }
+    }
 
     // list networks
-//    docker.listNetworks().get match {
-//      case images => images.foreach { image =>
-//        println(image)
-//      }
-//    }
+    docker.listNetworks().get match {
+      case null => println("no networks")
+      case networks => networks.foreach { net =>
+        println(net.Driver)
+      }
+    }
+    // println("----------------")
 
-    // search by name
-//    val t = docker.getContainer("modest_gagarin")
-//    if (t.isInstanceOf[docker.Container]) println(t.Names.head)
-//    println("----------------------")
+    // list volumes
+    docker.listVolumes().get match {
+      case null => println("no volumes")
+      case volumes => volumes.foreach { volume =>
+        println(volume.Name)
+      }
+    }
+
+    // stop all containers
+    docker.listContainers().get foreach { container =>
+      container.kill()
+    }
+
+    // start all containers
+    docker.listContainers().get foreach { container =>
+      container.start()
+    }
+
+    // get container by name
+        val modestGagarin = docker.getContainer("modest_gagarin")
+        modestGagarin match {
+          case Some(container) => println(container)
+          case _ => println("name or id is not valid")
+        }
 
     // search by id
-//    val kafka = docker.getContainer(id = "4e747fd8616a")
-//    println("----------------------")
-//    val kafka2 = docker.getContainer(id = "4e747fd8616a")
-//    println("----------------------")
-//    val kafka3 = docker.getContainer(id = "4e747fd8616a")
-//    println("----------------------")
-//    val kafka4 = docker.getContainer(id = "4e747fd8616a")
+        val kafka = docker.getContainer(id = "4e747fd8616a")
+    //    println("----------------------")
+    //    val kafka2 = docker.getContainer(id = "4e747fd8616a")
+    //    println("----------------------")
+    //    val kafka3 = docker.getContainer(id = "4e747fd8616a")
+    //    println("----------------------")
+    //    val kafka4 = docker.getContainer(id = "4e747fd8616a")
     // if (kafka.isInstanceOf[docker.Container]) println(kafka.Names.head)
 
-//    println("----------------------")
+    //    println("----------------------")
     // list volumes
-//    docker.listVolumes().get match {
-//      case items => items.Volumes foreach println
-//    }
+    //    docker.listVolumes().get match {
+    //      case items => items.Volumes foreach println
+    //    }
   }
 
   def main(args: Array[String]): Unit = {
+    // connecting to docker
     val docker: Docker = new Docker("/var/run/docker.sock", "localhost")
-    // create container
-    //    val containerConfig = Map(
-    //      "Domainname" -> "test",
-    //      "Image" -> "hello-world",
-    //      "Labels" -> Map(
-    //        "totatota" -> "bobaboba"
-    //      ),
-    //      "ExposedPorts" -> Map(
-    //        "8080" -> Map(),
-    //        "8808" -> Map()
-    //      )
-    //    )
-    //    docker.createContainer(name = "tesko", setting = containerConfig)
+
+    // trying methods in the api
     api(docker)
 
-
-    // closes sockerChannel, InputStream, OutputStream
+    // release resources
     docker.close()
   }
 }
