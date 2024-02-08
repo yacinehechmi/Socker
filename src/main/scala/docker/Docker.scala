@@ -135,6 +135,14 @@ class Docker(path: String, hostAddress: String) {
     // /v1.43/containers/{id}/kill
     //  def kill() = ???
 
+      // /v1.43/containers/{id}/kill
+      def kill(): Unit = {
+        if (this.Status.startsWith("Up")) {
+          val req = Request(_endpoint+this.Id.substring(0, 12)+"/kill", _host)
+          send[String](req, _http.post)
+        }
+      }
+
     // /v1.43/containers/{id}/restart
     //  def restart() = ???
 
