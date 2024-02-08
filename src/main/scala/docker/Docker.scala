@@ -23,6 +23,7 @@ class Docker(path: String, hostAddress: String) {
   private lazy val _imagesEndpoint = "/v1.43/images/json"
   private lazy val _networksEndpoint = "/v1.43/networks"
   private lazy val _volumesEndpoint = "/v1.43/volumes"
+  private lazy val _host = "localhost"
 
   private def deserialize[T: Reader](jsonString: String): Try[T] = Try(upickle.default.read[T](jsonString))
   private def serialize[T: Writer](caseClass: T): Try[String] = Try(upickle.default.write[T](caseClass))
