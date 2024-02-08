@@ -109,51 +109,26 @@ class HttpSocket(implicit path: Path) extends Socket(path) {
     }
   }
 
-//  private def formatRequest(host: String,
-//                            method: String,
-//                            request: String,
-//                            body: String = "",
-//                            auth: String = ""): String = {
-//    (auth.nonEmpty, body.nonEmpty) match {
-//      case (false, true) =>
-//        s"""$method $request HTTP/1.1
-//        \rHost: $host
-//        \rContent-Type: application/json
-//        \r\n\n$body\r\n\r\n""".stripMargin
-//      case (true, false) =>
-//        s"""$method $request HTTP/1.1
-//        \rHost: $host
-//        \rX-Registry-Auth: ${encodeBase64(auth)}\r\n\r\n""".stripMargin
-//      case (true, true) =>
-//        s"""$method $request HTTP/1.1
-//        \rHost: $host
-//        \rX-Registry-Auth: ${encodeBase64(auth)}
-//        \rContent-Type: application/json
-//        \r\n\n$body\r\n\r\n""".stripMargin
-//      case _ =>
-//    }
-//  }
-private def formatRequest(request: Request): String = {
-  request match {
-    case Request(method, host, req, null, null, null) => s"$method $req HTTP/1.1\r\nHost: $host\r\n\r\n"
-    case Request(method, host, req, params, null, null) => {
-      val sParams = params.map((x,y) => s"""$x=$y""".trim).mkString("?", "&", "")
-      s"$method $req$sParams HTTP/1.1\r\nHost: $host\r\n\r\n"
-    }
-    case Request(method, host, req, params, body, null) => {
-      val sParams = params.map((x, y) => s"""$x=$y""".trim).mkString("?", "&", "")
-      s"""$method $req$sParams
-         HTTP/1.1\r\nHost: $host\r\n
-         Content-Type: application/json
-         \r\nContent-Length:${body.length}\r\n\r\n$body\r\n\r\n""".trim
-    }
-    case Request(method, host, req, params, body, auth) => {
-      val sParams = params.map((x, y) => s"""$x=$y""".trim).mkString("?", "&", "")
-      s"""$method $req$sParams
-         HTTP/1.1\r\nHost: $host\r\n
-         X-Registry-Auth: ${encodeBase64(auth)}\r\n
-         Content-Type: application/json\r\n
-         Content-Length:${body.length}\r\n\r\n$body\r\n\r\n""".trim
+  private def formatRequest(request: Request, method: Method): String = {
+    request match {
+      case Request(endpoint, host, null, null, null) =>
+        s"$method $endpoint HTTP/1.1\r\nHost: $host\r\n\r\n"
+      case Request(endpoint, host, params, null, null)  =>
+        val sParams = params.map((x,y) => s"""$x=$y""".trim).mkString("?", "&", "")
+        s"$method $endpoint$sParams HTTP/1.1\r\nHost: $host\r\n\r\n"
+      case Request(endpoint, host, params, body, null) =>
+        val sParams = params.map((x, y) => s"""$x=$y""".trim).mkString("?", "&", "")
+        s"""$method $endpoint$sParams
+        HTTP/1.1\r\nHost: $host\r\n
+        Content-Type: application/json
+        \r\nContent-Length:${body.length}\r\n\r\n$body\r\n\r\n""".strip
+      case Request(endpoint, host, params, body, auth) =>
+        val sParams = params.map((x, y) => s"""$x=$y""".trim).mkString("?", "&", "")
+        s"""$method $endpoint$sParams
+        HTTP/1.1\r\nHost: $host\r\n
+        X-Registry-Auth: ${encodeBase64(auth)}\r\n
+        Content-Type: application/json\r\n
+        Content-Length:${body.length}\r\n\r\n$body\r\n\r\n""".strip
     }
   }
 }
