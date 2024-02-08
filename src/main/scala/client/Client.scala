@@ -70,27 +70,24 @@ class HttpSocket(implicit path: Path) extends Socket(path) {
     }
   }
 
-  def get(uri: String): String = {
-//    write(formatRequest())
-    val (header, body) = parseResponse(read())
-    header
-  }
+  private def parseHeader(headerString: String): Option[Header] = {
+    val headerMap: collection.mutable.Map[String, String] = collection.mutable.Map()
+    val lines: Array[String] = headerString.split("\r\n")
 
-  private def parseResponse(response: String): (String, Option[String]) = {
-    // parses the response and returns the header and body
-    val header = ""
-    // parse the header and get the Content-type And length then decide what to do with the body if it exists
-    val body = if (response.indexOf("[") < response.indexOf("{")) {
-      Try(response.substring(response.indexOf("["), response.lastIndexOf("0"))) match {
-        case Success(json) => json
-        case Failure(e) => println(s"$e maybe empty string check request format"); """{"failed": "failed to parse body"}"""
-      }
-    } else {
-      Try(response.substring(response.indexOf("{"), response.lastIndexOf("0"))) match {
-        case Success(json) => json
-        case Failure(e) => println(s"$e maybe empty string check request format"); """{"failed": "failed to parse body"}"""
+    lines.foreach{ x =>
+      val keyValues = x.split(":")
+      keyValues.length match {
+        case 1 =>
+          headerMap("HTTP") = keyValues.head.trim
+        case _ =>
+          headerMap(keyValues.head.trim) =
+            keyValues.tail.reduce((c, c2) => if (keyValues.tail.length > 1)  c.trim + ":" + c2.trim else c.trim + c2.trim)
       }
     }
+
+    mapToHeader(headerMap)
+  }
+  // receive
 
     (header, Option(body))
   }
