@@ -68,16 +68,16 @@ to interact with the Docker remote API use a Docker class instance
 `kafkaBroker.start()`
 
 
-8. kill a container
+8. Kill a container
 `kafkaBroker.kill()`
 
 
-9. start all containers
+10. Start all containers
 `docker.listContainers().get foreach(_.start())`
 
 ## Todos
-- [] implement HTTP support
-- [] implement secure connection (HTTPS)
-- [] add more endpoints
-- [] work on filters and parameters of each endpoint
-- [] add X-Registry-Auth for authenticating to docker
+- [] Implement HTTP support
+- [] Implement secure connection (HTTPS)
+- [] Add more endpoints
+- [] Work on filters and parameters of each endpoint
+- [] Add X-Registry-Auth for authenticating to docker
