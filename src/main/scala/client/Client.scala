@@ -64,10 +64,10 @@ class HttpSocket(implicit path: Path) extends Socket(path) {
       headerMap.getOrElse("Date", "noDate"),
       headerMap.getOrElse("Transfer-Encoding", "notTransferEcoding"))}
 
-  def post(uri: String)(body: String): String = {
-//    write(formatRequest())
-    val (header, body) = parseResponse(read())
-    header
+    obj match {
+      case Success(obj) => Some(obj)
+      case Failure(e) => None
+    }
   }
 
   def get(uri: String): String = {
