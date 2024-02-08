@@ -86,11 +86,10 @@ class Docker(path: String, hostAddress: String) {
     send[List[Container]](Request(_containersEndpoint, _host, Map("all" -> listAll)), _http.get)
   }
 
-  // /v1.43/images/json
-//  def listImages(): Option[List[Image]] = {
-//    _socket.write(_host, _get, s"${_imagesEndpoint}")
-//    getResponse[List[Image]]
-//  }
+//   /v1.43/images/json
+  def listImages(): Option[List[Image]] = {
+    send[List[Image]](Request(_imagesEndpoint, _host), _http.get)
+  }
 
   // /v1.43/networks
 //  def listNetworks(): Option[List[Network]] = {
