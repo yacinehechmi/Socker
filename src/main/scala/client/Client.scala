@@ -49,6 +49,9 @@ final case class Request(uri: String,
   auth: Map[String, String] = null)
 
 class HttpSocket(implicit path: Path) extends Socket(path) {
+  def post(request: Request): (Option[Header], Option[String]) = sendAndReceive(request, Method.POST)
+  def get(request: Request): (Option[Header], Option[String]) = sendAndReceive(request, Method.GET)
+  def put(request: Request): (Option[Header], Option[String]) = sendAndReceive(request, Method.PUT)
 
   def post(uri: String)(body: String): String = {
 //    write(formatRequest())
