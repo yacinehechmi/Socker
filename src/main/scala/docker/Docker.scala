@@ -134,11 +134,23 @@ class Docker(path: String, hostAddress: String) {
                        Ports: List[Port], Labels: Map[String, String], Mounts: List[Mount]) derives ReadWriter {
     // /v1.43/containers/{id}/kill
     //  def kill() = ???
+    Command: String, Created: Long, State: String, Status: String,
+    HostConfig: Map[String, String], NetworkSettings: Map[String, Map[String, Driver]],
+    Ports: List[Port], Labels: Map[String, String], Mounts: List[Mount]) derives ReadWriter {
+      private lazy val _endpoint = "/v1.43/containers/"
 
       // /v1.43/containers/{id}/kill
       def kill(): Unit = {
         if (this.Status.startsWith("Up")) {
           val req = Request(_endpoint+this.Id.substring(0, 12)+"/kill", _host)
+          send[String](req, _http.post)
+        }
+      }
+      
+      // /v1.43/containers/{id}/start
+      def start(): Unit = {
+        if (this.Status.startsWith("Exited")) {
+          val req = Request(_endpoint+this.Id.substring(0, 12)+"/start", _host)
           send[String](req, _http.post)
         }
       }
