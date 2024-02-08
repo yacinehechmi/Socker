@@ -5,7 +5,6 @@ import java.io.{InputStreamReader, PrintWriter}
 import java.nio.CharBuffer
 import java.nio.channels.Channels
 
-import java.net.http.{HttpHeaders, HttpRequest}
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 import java.nio.ReadOnlyBufferException
@@ -15,8 +14,6 @@ import scala.annotation.tailrec
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 import upickle.default._
-import java.nio.ReadOnlyBufferException
-import upickle.implicits.key
 
 import client.Method.GET
 
