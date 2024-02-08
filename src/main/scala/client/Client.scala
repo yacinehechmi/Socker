@@ -17,6 +17,17 @@ import upickle.default._
 
 import client.Method.GET
 
+/*
+-------------- TODO ---------------------
+1.finish working on an MVP 
+2.create an HttpWrapper to Socket (X)
+3.Test X-Registry-Auth
+4.Fix request formatting (X)
+5.Add Ssl/Tls Checking and connection
+6.complete Delete, Head and Put Methods
+7.tls connection logic
+*/
+
 case class Path(path: String)
 
 enum Method:
