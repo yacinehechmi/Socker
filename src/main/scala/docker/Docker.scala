@@ -59,6 +59,18 @@ class Docker(path: String, hostAddress: String) {
  //  }
  // forwarding request to Socket
 
+  private def send[T: Reader](requestBody: Request, request: Request => (Option[Header], Option[String])): Option[T] = {
+    val (header, body) = request(requestBody)
+    request(requestBody) match {
+      case (Some(header), Some(body)) => deserialize[T](body) match {
+        case Success(bodyContent) => Option(bodyContent)
+        case Failure(e) => None
+      }
+        case (Some(header), None) => println("got only header"); None
+        case _ => println("something went wrong"); None
+    }
+  }
+
   /* GET */
   // /v1.43/info
   def version(): String = { _http.get("/v1.43/info") }
