@@ -53,6 +53,17 @@ class HttpSocket(implicit path: Path) extends Socket(path) {
   def get(request: Request): (Option[Header], Option[String]) = sendAndReceive(request, Method.GET)
   def put(request: Request): (Option[Header], Option[String]) = sendAndReceive(request, Method.PUT)
 
+  private def mapToHeader(headerMap: collection.mutable.Map[String, String]) : Option[Header] = {
+    val obj = Try {Header(
+      headerMap.getOrElse("HTTP", "noHTTP"),
+      headerMap.getOrElse("Api-Version", "noAPIv"),
+      headerMap.getOrElse("Content-Type", "noContentType"),
+      headerMap.getOrElse("Docker-Experimental", "noDockerExpr"),
+      headerMap.getOrElse("Ostype", "noOstype"),
+      headerMap.getOrElse("Server", "noServer"),
+      headerMap.getOrElse("Date", "noDate"),
+      headerMap.getOrElse("Transfer-Encoding", "notTransferEcoding"))}
+
   def post(uri: String)(body: String): String = {
 //    write(formatRequest())
     val (header, body) = parseResponse(read())
