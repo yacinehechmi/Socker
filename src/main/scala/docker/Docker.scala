@@ -73,13 +73,18 @@ class Docker(path: String, hostAddress: String) {
 
   /* GET */
   // /v1.43/info
-  def version(): String = { _http.get("/v1.43/info") }
-  // /v1.43/container
-  // by default it will list all
-//  def listContainers(listAll: Boolean = true): Option[List[Container]] = {
-//    _socket.write(_host, _get, s"${_containersEndpoint}?all=$listAll")
-//    getResponse[List[Container]]
-//  }
+  def version(): Option[String] = {
+    val req = Request("/v1.43/info", _host)
+    val (header, body) = _http.get(req)
+    body match {
+    case Some(body) => Some(body)
+    case None => None
+    }
+  }
+// /v1.43/containers/json by default it will list all
+  def listContainers(listAll: Boolean = true): Option[List[Container]] = {
+    send[List[Container]](Request(_containersEndpoint, _host, Map("all" -> listAll)), _http.get)
+  }
 
   // /v1.43/images/json
 //  def listImages(): Option[List[Image]] = {
