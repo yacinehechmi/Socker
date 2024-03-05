@@ -53,8 +53,8 @@ class Docker(path: String, hostAddress: String) {
     }
   }
 
-  /* GET */
-  // /v1.43/info
+// /v1.43/info
+  /*--work on params and filters--*/
   def version(): Option[String] = {
     val req = Request("/v1.43/info", _host)
     val (header, body) = _http.get(req)
@@ -66,35 +66,127 @@ class Docker(path: String, hostAddress: String) {
   
   /* -------------- Images ------------*/
 
-//   /v1.43/images/json
-  def listImages(): Option[List[Image]] = {
-    send[List[Image]](Request(_imagesEndpoint, _host), _http.get)
+  // /v1.43/images/json
+  /*--done working with this endpoint--*/
+  def listImages(listAll: Boolean = false, sharedSize: Boolean = false, digets: Boolean = false): Option[List[Image]] =
+                   send[List[Image]](Request(_imagesEndpoint, _host, Map("all" -> listAll,
+                                                                         "shared-size" -> false,
+                                                                         "digest" -> false)), _http.get)
+  /*--done working with this endpoint--*/
+
+  /* -------------- Networks ------------*/
+  // /v1.43/networks
+  /*--work on params and filters (filters are not working)--*/
+  def listNetworks(filters: Map[String, String | Int | Boolean] = null) =
+    send[List[Network]](Request(_networksEndpoint, _host, filters = filters), _http.get)
+  /*--work on params and filters (filters are not working)--*/
+
+  /* -------------- Volumes ------------*/
+  // /v1.43/volumes
+  /*--work on params and filters (filters are not working)--*/
+  def listVolumes(filters: Map[String, String | Int | Boolean] = null) =
+    send[List[Volumes]](Request(_volumesEndpoint, _host, filters = filters), _http.get)
+  /*--work on params and filters (filters are not working)--*/
+
+
+  /* -------------- Containers ------------*/
+    // /v1.43/containers/create
+    /*--work on params and filters--*/
+    def createContainer(name: String,
+                        hostname: String = null,
+                        user: String = null,
+                        config: PostContainer = null): Option[String] = {
+      serialize[PostContainer](config) match {
+        case Success(containerConfig) =>
+          send[String](Request(_createContainersEndpoint, _host, Map("name" -> name), body = containerConfig), _http.post)
+        case Failure(e) => println(s"[Docker.Container.createContainer]: Failed to create a container with error:\n$e"); None
+      }
+    }
+
+  // /v1.43/containers/json by default it will list all
+  def listContainers(listAll: Boolean = true,
+                     limit: Int = 0,
+                     getSize: Boolean = false,
+                     filters: Map[String, String | Int | Boolean] = null): Option[List[Container]] = 
+    send[List[Container]](Request(_containersEndpoint, _host, Map("all" -> listAll, "limit" -> limit, "size" -> getSize), filters), _http.get) 
+
+  // for now just return the jsonString response
+  // inspecting a container
+  // /containers/<id>/json
+  /*--work on params and filters--*/
+  def inspectContainer(id: String = "", size: Boolean = false) = {
+     if (id.isBlank) {
+       // check this later
+       throw new RuntimeException("please porvide the a container id")
+       None
+     }
+     else send[String](Request("/v1.43/containers/"+id+"/json", _host, Map("size" -> size)), _http.get)
   }
 
-// /v1.43/networks
-  def listNetworks(): Option[List[Network]] = {
-    send[List[Network]](Request(_networksEndpoint, _host), _http.get)
+  // listing processes running inside a container
+  // /containers/<id>/top
+  /*--work on params and filters--*/
+  def top(id: String = "", psArgs: String = "") = {
+     if (id.isBlank) {
+       // check this later
+       throw new RuntimeException("please porvide a container id")
+       None
+     }
+     else send[Container](Request("/v1.43/containers/"+id+"/top", _host, Map("ps_args" -> psArgs)), _http.get)
   }
 
-// /v1.43/volumes
-  def listVolumes(): Option[List[Volumes]] = {
-    send[List[Volumes]](Request(_volumesEndpoint, _host), _http.get)
+  // getting container logs by ID
+  // /containers/<id>/logs
+  // this needs to be a stream
+  /*--work on params and filters--*/
+  def logs(id: String = "",
+           follow: Boolean = false,
+           stdout: Boolean = false,
+           stderr: Boolean = false,
+           since: Int = 0,
+           until: Int = 0,
+           timestamps: Boolean = false,
+           tail: String = "all") = {
+     if (id.isBlank) {
+       // check this later
+       throw new RuntimeException("please porvide a container id")
+       None
+     }
+     else send[Container](Request(s"/v1.43/containers/$id/logs", _host, Map("follow" -> follow,
+                                                                              "stdout" -> stdout,
+                                                                              "stderr" -> stderr,
+                                                                              "since" -> since,
+                                                                              "until" -> until,
+                                                                              "timestamps" -> timestamps,
+                                                                              "tail" -> tail)), _http.get)
+  }
+
+  // the output of this is to long and the format is not suitable
+  def listFsChanges(id: String = "") = {
+    if (id.isBlank()) {
+      throw new RuntimeException("please provide a container id")
+      None
+    } else send[Container](Request(s"/v1.43/containers/$id/changes", _host), _http.get)
   }
 
 
-// this should be replaced by /container/json?id=<id>
-  def getContainer(name: String = "",
-                   id: String = "",
-                   listAll: Boolean = true): Option[List[Container]] = {
-    (name.isBlank, id.isBlank) match {
-      case (false, true) =>
-        send[List[Container]](Request(_containersEndpoint, _host, Map("all" -> listAll, "filters" -> s"""{"name":["$name"]}""")), _http.get)
-      case (true, false) =>
-        send[List[Container]](Request(_containersEndpoint, _host, Map("all" -> listAll, "filters" -> s"""{"id": ["$id"]}""")), _http.get)
-      case _ => println(s"[docker:getContainer] please provide a container id or name"); null
+  def exportContainer(id: String = "") = {
+    if (id.isBlank()) {
+      throw new RuntimeException("please provide a container id")
+      None
+    } else send[Container](Request(s"/v1.43/containers/$id/export", _host), _http.get)
+  }
+
+  def listProcesses(id: String = "") = { if (id.isBlank) {
+      throw new RuntimeException("please provide ")
     }
   }
 
+  def containerStats(id: String = "", stream: Boolean = true, oneShot: Boolean = false) = {
+    if (id.isBlank) {
+      throw new RuntimeException("please provide a container ID")
+    } else send[Container](Request(s"/v1.44/containers/$id/stats", _host, Map("stream" -> stream, "one-shot" -> oneShot)), _http.get)
+  }
 
 // Container class
   case class Port(IP: String = "", PrivatePort: Int = 0,
