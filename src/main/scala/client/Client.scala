@@ -42,7 +42,8 @@ final case class Header(response: String = null,
 
 final case class Request(uri: String,
   host: String = null,
-  params: Map[String, Boolean | String | Int] = null,
+  params: Map[String, String | Int | Boolean] = null,
+  filters: Map[String, String | Int | Boolean] = null,
   body: String = null,
   auth: Map[String, String] = null)
 
@@ -107,22 +108,32 @@ class HttpSocket(implicit path: Path) extends Socket(path) {
     }
   }
 
+  private def convertFilters(filters: Map[String, String | Int | Boolean]): Option[String] =
+        Try(filters.map((x,y) => s""""$x":["$y"]""".trim).mkString("{", ",", "}")) match {
+          case Success(filters) => Some(filters)
+          case Failure(e) => println("[Client.convertFilters] failed to convert filters from Map to JsonString"); Some("")
+        }
+
   private def formatRequest(request: Request, method: Method): String = {
     request match {
-      case Request(endpoint, host, null, null, null) =>
-        s"$method $endpoint HTTP/1.1\r\nHost: $host\r\n\r\n"
-      case Request(endpoint, host, params, null, null)  =>
-        val sParams = params.map((x,y) => s"""$x=$y""".trim).mkString("?", "&", "")
-        s"$method $endpoint$sParams HTTP/1.1\r\nHost: $host\r\n\r\n"
-      case Request(endpoint, host, params, body, null) =>
-        val sParams = params.map((x, y) => s"""$x=$y""".trim).mkString("?", "&", "")
-        s"""$method $endpoint$sParams
-        HTTP/1.1\r\nHost: $host\r\n
-        Content-Type: application/json
-        \r\nContent-Length:${body.length}\r\n\r\n$body\r\n\r\n""".strip
-      case Request(endpoint, host, params, body, auth) =>
-        val sParams = params.map((x, y) => s"""$x=$y""".trim).mkString("?", "&", "")
-        s"""$method $endpoint$sParams
+      case Request(endpoint, host, null, null, null, null) =>
+        val req = s"$method $endpoint HTTP/1.1\r\nHost: $host\r\n\r\n"
+        println(req)
+        req
+      case Request(endpoint, host, params, null, null, null) =>
+        val req = s"$method $endpoint${convertParams(params).get} HTTP/1.1\r\nHost: $host\r\n\r\n"
+        println(req)
+        req
+      case Request(endpoint, host, params, filters, null, null) =>
+        val req = s"$method $endpoint${convertParams(params).get}&filters=${convertFilters(filters).get} HTTP/1.1\r\nHost: $host\r\n\r\n"
+        println(req)
+        req
+      case Request(endpoint, host, params, null, body, null) =>
+        val req = s"$method $endpoint${convertParams(params).get} HTTP/1.1\r\nHost: $host\r\nContent-Type: application/json\r\nContent-Length: ${body.length}\r\n\r\n$body"
+        println(req)
+        req
+      case Request(endpoint, host, params, null, body, auth) =>
+        val req = s"""$method $endpoint${convertParams(params).get}
         HTTP/1.1\r\nHost: $host\r\n
         X-Registry-Auth: ${encodeBase64(auth)}\r\n
         Content-Type: application/json\r\n
