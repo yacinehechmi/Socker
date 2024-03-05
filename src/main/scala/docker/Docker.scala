@@ -188,22 +188,22 @@ class Docker(path: String, hostAddress: String) {
     } else send[Container](Request(s"/v1.44/containers/$id/stats", _host, Map("stream" -> stream, "one-shot" -> oneShot)), _http.get)
   }
 
-// Container class
+  // Container class
   case class Port(IP: String = "", PrivatePort: Int = 0,
-                  PublicPort: Int = 0, Type: String = "") derives ReadWriter
+      PublicPort: Int = 0, Type: String = "") derives ReadWriter
 
   case class Driver(IPAMConfig: String, Links: String, Aliases: String, NetworkID: String,
-                    EndpointID: String, Gateway: String, IPAddress: String, IPPrefixLen: Int,
-                    IPv6Gateway: String, GlobalIPv6Address: String, GlobalIPv6PrefixLen: Int, MacAddress: String,
-                    DriverOpts: String) derives ReadWriter
+      EndpointID: String, Gateway: String, IPAddress: String, IPPrefixLen: Int,
+      IPv6Gateway: String, GlobalIPv6Address: String, GlobalIPv6PrefixLen: Int, MacAddress: String,
+      DriverOpts: String) derives ReadWriter
 
-  case class Mount(Type: String, Name: String, Source: String, Destination: String,
-                   Driver: String, Mode: String, RW: Boolean, Propagation: String) derives ReadWriter
+  case class Mount(Type: String = "", Name: String = "", Source: String = "", Destination: String = "",
+      Driver: String = "", Mode: String = "", RW: Boolean = false, Propagation: String = "") derives ReadWriter
 
   case class Container(Id: String, Names: List[String], Image: String, ImageID: String,
-    Command: String, Created: Long, State: String, Status: String,
-    HostConfig: Map[String, String], NetworkSettings: Map[String, Map[String, Driver]],
-    Ports: List[Port], Labels: Map[String, String], Mounts: List[Mount]) derives ReadWriter {
+    Command: String, Created: String, State: String, Status: String,
+    HostConfig: Map[String, String], NetworkSettings: Map[String, Map[String, Driver]] = null,
+    Ports: List[Port], Labels: Map[String, String], Mounts: List[Mount] = null) derives ReadWriter {
       private lazy val _endpoint = "/v1.43/containers/"
 
       // /v1.43/containers/{id}/kill
