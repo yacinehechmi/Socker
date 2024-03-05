@@ -206,8 +206,10 @@ class Docker(path: String, hostAddress: String) {
     Ports: List[Port], Labels: Map[String, String], Mounts: List[Mount] = null) derives ReadWriter {
       private lazy val _endpoint = "/v1.43/containers/"
 
-      // /v1.43/containers/{id}/kill
-      def kill(): Unit = {
+      /*--work on params and filters--*/
+      // POST /v1.43/containers/{id}/kill
+      // still working on this, should not return Unit
+      def stop(): Unit = {
         if (this.Status.startsWith("Up")) {
           val req = Request(_endpoint+this.Id.substring(0, 12)+"/kill", _host)
           send[String](req, _http.post)
