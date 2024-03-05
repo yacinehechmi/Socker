@@ -66,7 +66,7 @@ class HttpSocket(implicit path: Path) extends Socket(path) {
 
     obj match {
       case Success(obj) => Some(obj)
-      case Failure(e) => None
+      case Failure(e) => println(s"[HTTP]: Failed to parse header with value: $headerMap");None
     }
   }
 
@@ -87,9 +87,10 @@ class HttpSocket(implicit path: Path) extends Socket(path) {
 
     mapToHeader(headerMap)
   }
+  
   // receive
-
   private def sendAndReceive(request: Request, method: Method): (Option[Header], Option[String]) = {
+    //println(request)
     write(formatRequest(request, method))
     val response = read()
     println(response)
@@ -99,7 +100,8 @@ class HttpSocket(implicit path: Path) extends Socket(path) {
     // check if "[" is existing and its before "{" same thing for "{"
     (body.contains("["), body.contains("{")) match {
       case (true, false) => (parseHeader(headerString), Some(body.substring(body.indexOf("["), body.lastIndexOf("]") + 1)))
-      case (false, true) => (parseHeader(headerString), Some(body.substring(body.indexOf("{"), body.lastIndexOf("}") + 1)))
+      case (false, true) => 
+        (parseHeader(headerString), Some(body.substring(body.indexOf("{"), body.lastIndexOf("}") + 1)))
       case (false, false) => (parseHeader(headerString), None)
       case (true, true) =>
         if body.indexOf("[") < body.indexOf("{") then
@@ -144,7 +146,9 @@ class HttpSocket(implicit path: Path) extends Socket(path) {
         HTTP/1.1\r\nHost: $host\r\n
         X-Registry-Auth: ${encodeBase64(auth)}\r\n
         Content-Type: application/json\r\n
-        Content-Length:${body.length}\r\n\r\n$body\r\n\r\n""".strip
+        Content-Length: ${body.length}\r\n\r\n$body""".trim
+        println(req)
+        req
     }
   }
 
@@ -167,8 +171,8 @@ class Socket(path: Path){
   private val _file = Try(new java.io.File(path.path)) match {
     case Success(fileAddress) => fileAddress
     case Failure(e) => e match {
-      case e: NullPointerException => throw new IOException(s"Could not find file $path\n$e") with NoStackTrace
-      case e: IllegalArgumentException => throw new IOException(s"Could not find file $path\n$e") with NoStackTrace
+      case e: NullPointerException => throw new IOException(s"[Socket]: Could not find file $path\n$e") with NoStackTrace
+      case e: IllegalArgumentException => throw new IOException(s"[Socket]: Could not find file $path\n$e") with NoStackTrace
     }
   }
   private val _socketAddress = new UnixSocketAddress(_file)
@@ -203,15 +207,6 @@ class Socket(path: Path){
   }
 
   protected def read(): String = recurseReader(_reader, CharBuffer.allocate(2048), StringBuilder(), true, 0)
-
-  protected def write(request: String): Unit = {
-    _writer.write(request)
-    _writer.flush()
-  }
-
-  protected def release(): Unit = {
-    _channel.close()
-    _writer.close()
-    _reader.close()
-  }
+  protected def write(request: String): Unit = { _writer.write(request); _writer.flush() }
+  protected def release(): Unit = { _channel.close(); _writer.close(); _reader.close() }
 }
