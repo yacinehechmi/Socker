@@ -212,39 +212,45 @@ class Docker(path: String, hostAddress: String) {
           val req = Request(_endpoint+this.Id.substring(0, 12)+"/kill", _host)
           send[String](req, _http.post)
         }
+
+        else return
       }
       
-      // /v1.43/containers/{id}/start
+      /*--work on params and filters--*/
+      // POST /v1.43/containers/{id}/start
+      // still working on this, should not return Unit
       def start(): Unit = {
         if (this.Status.startsWith("Exited")) {
-          val req = Request(_endpoint+this.Id.substring(0, 12)+"/start", _host)
+          val req = Request(_endpoint+this.Id+"/start", _host)
           send[String](req, _http.post)
         }
+
+        else return
       }
+      
+      // /v1.43/containers/{id}/json = docker inspect <container_id>
+      // still working on this, should not return Unit
 
-    // /v1.43/containers/{id}/restart
-    //  def restart() = ???
+      /*--work on params and filters--*/
+      // POST /v1.43/containers/{id}/restart
+      def restart(): Unit = {
+          val req = Request(_endpoint+this.Id+"/restart", _host)
+          send[String](req, _http.post)
+        }
+      
+      /*--work on params and filters--*/
+      // DELETE /v1.43/containers/{id}/
+      def remove(): Unit = {
+          val req = Request(_endpoint+this.Id, _host)
+          send[String](req, _http.delete)
+        }
 
-    // /v1.43/containers/{id}
-    //  def remove() = ???
+      //    def stop(): Unit = sendRequest[String]("POST", s"${_endpoint}/${this.Id}/stop")
 
-    // /v1.43/containers/{id}/json
-    //  def inspect() = ???
+      }
+    // Container class
 
-    // /v1.43/containers/{id}/logs
-    //  def logs() = ???
-
-      // /v1.43/containers/{id}/stats
-      //  def stats() = ???
-
-//    def stop(): Unit = sendRequest[String]("POST", s"${_endpoint}/${this.Id}/stop")
-
-    // /v1.43/containers/{id}/start
-//    def start(): Unit = sendRequest[String]("POST", s"${_endpoint}/${this.Id}/start")
-  }
-  // Container class
-
-  // Image class
+      // Image class
   case class Image(Id: String,
                    ParentId: String,
                    RepoTags: List[String], RepoDigests: List[String],
