@@ -4,67 +4,49 @@ import upickle.default._
 import client._
 
 import scala.util.{Failure, Success, Try}
+import java.nio.CharBuffer
+import geny.Generator.End
 
 /*
--------------- TODO ---------------------
+-------------- TODO LONGTERM ---------------------
 1. finish working on an MVP (X)
 2. finish all case classes for Images and networks 
-3. build methods for each parent class to fulfill each endpoint 
-4. work on filters and parameters of each endpoint
+3. build methods for each parent class to fulfill each endpoint (X)
+4. work on filters and parameters of each endpoint (X)
 */
 
 
-class Docker(path: String, hostAddress: String) {
-  private given Path(path)
-  private val _http: HttpSocket = new HttpSocket
+/*
+-------------- TODO ----------------------
+1. fix params parsing to verify if param is set to default (if so the param will be ignored) else parse param
+2. same thing for filters
+3. see how can you parse different responses with different types and formats
+4. finish all container related endpoints
+*/
 
+
+
+class Docker(path: String, hostAddress: String) {
   private lazy val _containersEndpoint = "/v1.43/containers/json"
   private lazy val _createContainersEndpoint = "/v1.43/containers/create"
   private lazy val _imagesEndpoint = "/v1.43/images/json"
   private lazy val _networksEndpoint = "/v1.43/networks"
   private lazy val _volumesEndpoint = "/v1.43/volumes"
-  private lazy val _host = "localhost"
+  private lazy val _host = hostAddress
+  private given Path(path)
+  private val _http: HttpSocket = new HttpSocket
 
   private def deserialize[T: Reader](jsonString: String): Try[T] = Try(upickle.default.read[T](jsonString))
   private def serialize[T: Writer](caseClass: T): Try[String] = Try(upickle.default.write[T](caseClass))
 
   def close(): Unit = _http.close()
 
-  /* POST */
- // /v1.43/containers/create
-   // def createContainer(name: String,
-                       // platform: String = null,
-                       // config: PostContainer = null): Option[String] = {
-     // val req = Request(_createContainersEndpoint, _host, Map("name" -> name))
-     // val (header, body) = _http.get(req)
-     // body match {
-       // case Some(body) => Some(body)
-       // case None => None
-     // }
-   // }
- 
-
- //  def createContainer(name: String, platform: String = null,
- //                      config: PostContainer): String = {
- //    _socket.write(
- //      _host,
- //      _post,
- //      s"$_createContainersEndpoint?name=$name",
- //      serialize[PostContainer](config) match {
- //      case Success(postContainer) => println(postContainer); postContainer
- //      case Failure(e) => throw new RuntimeException(e)
- //    })
- //
- //    _socket.read()
- //  }
- // forwarding request to Socket
-
-  private def send[T: Reader](requestBody: Request, request: Request => (Option[Header], Option[String])): Option[T] = {
-    val (header, body) = request(requestBody)
+  // -- for now this will return the responseString if it failes to parse
+  def send[T: Reader](requestBody: Request, request: (Request => (Option[Header], Option[String]))): Option[T] = {
     request(requestBody) match {
       case (Some(header), Some(body)) => deserialize[T](body) match {
         case Success(bodyContent) => Option(bodyContent)
-        case Failure(e) => None
+        case Failure(e) => println(s"[Docker.send]: failed to deserialize \n $e"); None
       }
         case (Some(header), None) => println("got only header"); None
         case _ => println("something went wrong"); None
@@ -81,10 +63,8 @@ class Docker(path: String, hostAddress: String) {
     case None => None
     }
   }
-// /v1.43/containers/json by default it will list all
-  def listContainers(listAll: Boolean = true): Option[List[Container]] = {
-    send[List[Container]](Request(_containersEndpoint, _host, Map("all" -> listAll)), _http.get)
-  }
+  
+  /* -------------- Images ------------*/
 
 //   /v1.43/images/json
   def listImages(): Option[List[Image]] = {
