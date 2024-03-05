@@ -51,6 +51,7 @@ class HttpSocket(implicit path: Path) extends Socket(path) {
   def post(request: Request): (Option[Header], Option[String]) = sendAndReceive(request, Method.POST)
   def get(request: Request): (Option[Header], Option[String]) = sendAndReceive(request, Method.GET)
   def put(request: Request): (Option[Header], Option[String]) = sendAndReceive(request, Method.PUT)
+  def delete(request: Request): (Option[Header], Option[String]) = sendAndReceive(request, Method.DELETE)
 
   private def mapToHeader(headerMap: collection.mutable.Map[String, String]) : Option[Header] = {
     val obj = Try {Header(
@@ -107,6 +108,12 @@ class HttpSocket(implicit path: Path) extends Socket(path) {
           (parseHeader(headerString), Some(body.substring(body.indexOf("{"), body.lastIndexOf("}") + 1)))
     }
   }
+
+  private def convertParams(params: Map[String, String | Int | Boolean]): Option[String] =
+        Try(params.map((x,y) => s"""$x=$y""".trim).mkString("?", "&", "")) match {
+          case Success(params) => Some(params)
+          case Failure(e) => println("[Client.convertParams] failed to convert paramaters from Map to url params"); Some("")
+        }
 
   private def convertFilters(filters: Map[String, String | Int | Boolean]): Option[String] =
         Try(filters.map((x,y) => s""""$x":["$y"]""".trim).mkString("{", ",", "}")) match {
