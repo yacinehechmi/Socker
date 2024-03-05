@@ -4,18 +4,16 @@ import java.io.IOException
 import java.io.{InputStreamReader, PrintWriter}
 import java.nio.CharBuffer
 import java.nio.channels.Channels
-
 import java.nio.charset.StandardCharsets
-import java.util.Base64
 import java.nio.ReadOnlyBufferException
+import java.util.Base64
 import jnr.unixsocket.{UnixSocketAddress, UnixSocketChannel}
 
-import scala.annotation.tailrec
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
+import scala.annotation.tailrec
 import upickle.default._
 
-import client.Method.GET
 
 /*
 -------------- TODO ---------------------
