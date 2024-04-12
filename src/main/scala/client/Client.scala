@@ -28,6 +28,8 @@ import upickle.default._
 
 case class Path(path: String)
 
+type A = Map[String, String | Int | Boolean]
+
 enum Method:
   case GET, POST, DELETE, HEAD, PUT
 
@@ -42,56 +44,106 @@ final case class Header(response: String = null,
 
 final case class Request(uri: String,
   host: String = null,
-  params: Map[String, String | Int | Boolean] = null,
-  filters: Map[String, String | Int | Boolean] = null,
+  params: A = null,
+  filters: A = null,
   body: String = null,
   auth: Map[String, String] = null)
 
-class HttpSocket(implicit path: Path) extends Socket(path) {
+class HttpSocket(path: Path) extends Socket(path: Path) {
   def post(request: Request): (Option[Header], Option[String]) = sendAndReceive(request, Method.POST)
   def get(request: Request): (Option[Header], Option[String]) = sendAndReceive(request, Method.GET)
   def put(request: Request): (Option[Header], Option[String]) = sendAndReceive(request, Method.PUT)
   def delete(request: Request): (Option[Header], Option[String]) = sendAndReceive(request, Method.DELETE)
 
-  private def mapToHeader(headerMap: collection.mutable.Map[String, String]) : Option[Header] = {
-    val obj = Try {Header(
-      headerMap.getOrElse("HTTP", "noHTTP"),
-      headerMap.getOrElse("Api-Version", "noAPIv"),
-      headerMap.getOrElse("Content-Type", "noContentType"),
-      headerMap.getOrElse("Docker-Experimental", "noDockerExpr"),
-      headerMap.getOrElse("Ostype", "noOstype"),
-      headerMap.getOrElse("Server", "noServer"),
-      headerMap.getOrElse("Date", "noDate"),
-      headerMap.getOrElse("Transfer-Encoding", "notTransferEcoding"))}
 
-    obj match {
-      case Success(obj) => Some(obj)
-      case Failure(e) => println(s"[HTTP]: Failed to parse header with value: $headerMap");None
-    }
+  // try to change mutable collection to immutable collection
+
+  // remove empty params or filters from request
+  private def formatRequest(request: Request, method: Method): String = {
+    def decodeBase64(msg: String): String =
+      val decoded = Base64.getDecoder.decode(msg)
+      new String(decoded, StandardCharsets.UTF_8)
+
+    def encodeBase64(auth: Map[String, String]): String =
+      Base64.getEncoder.encodeToString(
+        auth.map((x,y) => s""""$x":"$y"""".trim)
+          .mkString("{", ",", "}")
+          .getBytes(StandardCharsets.UTF_8)
+        )
+
+    def convertParams(params: A): Option[String] =
+      Try(params.map((x,y) => s"""$x=$y""".trim).mkString("?", "&", "")) match
+        case Success(params) => Some(params)
+        case Failure(e) =>
+          println("[Client.convertParams] failed to convert parameters from Map to url params"); Some("")
+
+    def convertFilters(filters: A): Option[String] =
+      if (filters == Map()) Some("")
+      else {Try(filters.map((x,y) => s""""$x":["$y"]""".trim).mkString("{", ",", "}")) match
+        case Success(filters) => println(s"&filters=$filters");Some(filters)
+        case Failure(e) =>
+          println("[Client.convertFilters] failed to convert filters from Map to JsonString"); Some("")}
+
+    request match
+      case Request(endpoint, host, null, null, null, null) =>
+        s"$method $endpoint HTTP/1.1\r\nHost: $host\r\n\r\n"
+
+      case Request(endpoint, host, params, null, null, null) =>
+        s"$method $endpoint${convertParams(params).get} HTTP/1.1\r\nHost: $host\r\n\r\n"
+
+      case Request(endpoint, host, params, filters, null, null) =>
+        s"$method $endpoint${convertParams(params).get}${convertFilters(filters).get} HTTP/1.1\r\nHost: $host\r\n\r\n"
+
+      case Request(endpoint, host, params, null, body, null) =>
+        s"$method $endpoint${convertParams(params).get} HTTP/1.1\r\nHost: $host\r\nContent-Type: application/json\r\nContent-Length: ${body.length}\r\n\r\n$body"
+
+      case Request(endpoint, host, params, null, body, auth) =>
+        s"""$method $endpoint${convertParams(params).get}
+        HTTP/1.1\r\nHost: $host\r\n
+        X-Registry-Auth: ${encodeBase64(auth)}\r\n
+        Content-Type: application/json\r\n
+        Content-Length: ${body.length}\r\n\r\n$body""".trim
   }
 
-  private def parseHeader(headerString: String): Option[Header] = {
-    val headerMap: collection.mutable.Map[String, String] = collection.mutable.Map()
-    val lines: Array[String] = headerString.split("\r\n")
 
-    lines.foreach{ x =>
-      val keyValues = x.split(":")
+  private def parseHeader(headerString: String): Option[Header] = {
+    def mapToHeader(headerMap: collection.mutable.Map[String, String]) : Option[Header] = {
+      val obj = Try{Header(headerMap.getOrElse("HTTP", "noHTTP"),
+                           headerMap.getOrElse("Api-Version", "noAPIv"),
+                           headerMap.getOrElse("Content-Type", "noContentType"),
+                           headerMap.getOrElse("Docker-Experimental", "noDockerExpr"),
+                           headerMap.getOrElse("Ostype", "noOstype"),
+                           headerMap.getOrElse("Server", "noServer"),
+                           headerMap.getOrElse("Date", "noDate"),
+                           headerMap.getOrElse("Transfer-Encoding", "notTransferEncoding"))}
+      obj match {
+        case Success(obj) => Some(obj)
+        case Failure(e) => println(s"[HTTP]: Failed to parse header with value: $headerMap"); None
+      }
+    }
+
+    val headerMap: collection.mutable.Map[String, String] = collection.mutable.Map()
+    headerString.split("\r\n").foreach{ line =>
+      val keyValues = line.split(":")
       keyValues.length match {
         case 1 =>
           headerMap("HTTP") = keyValues.head.trim
         case _ =>
           headerMap(keyValues.head.trim) =
-            keyValues.tail.reduce((c, c2) => if (keyValues.tail.length > 1)  c.trim + ":" + c2.trim else c.trim + c2.trim)
+            keyValues.tail.reduce((c, c2) => if (keyValues.tail.length > 1)  c.trim + ":" + c2.trim
+                                 else c.trim + c2.trim)
       }
     }
 
     mapToHeader(headerMap)
   }
-  
+
   // receive
   private def sendAndReceive(request: Request, method: Method): (Option[Header], Option[String]) = {
     //println(request)
-    write(formatRequest(request, method))
+    val req = formatRequest(request, method)
+    println(req)
+    write(req)
     val response = read()
     println(response)
     val headerString = response.substring(0, response.indexOf("\r\n\r\n"))
@@ -99,69 +151,16 @@ class HttpSocket(implicit path: Path) extends Socket(path) {
 
     // check if "[" is existing and its before "{" same thing for "{"
     (body.contains("["), body.contains("{")) match {
-      case (true, false) => (parseHeader(headerString), Some(body.substring(body.indexOf("["), body.lastIndexOf("]") + 1)))
-      case (false, true) => 
+      case (true, false) => (parseHeader(headerString),
+                              Some(body.substring(body.indexOf("["), body.lastIndexOf("]") + 1)))
+      case (false, true) =>
         (parseHeader(headerString), Some(body.substring(body.indexOf("{"), body.lastIndexOf("}") + 1)))
       case (false, false) => (parseHeader(headerString), None)
       case (true, true) =>
         if body.indexOf("[") < body.indexOf("{") then
           (parseHeader(headerString), Some(body.substring(body.indexOf("["), body.lastIndexOf("]") + 1)))
-        else
-          (parseHeader(headerString), Some(body.substring(body.indexOf("{"), body.lastIndexOf("}") + 1)))
+        else (parseHeader(headerString), Some(body.substring(body.indexOf("{"), body.lastIndexOf("}") + 1)))
     }
-  }
-
-  private def convertParams(params: Map[String, String | Int | Boolean]): Option[String] =
-        Try(params.map((x,y) => s"""$x=$y""".trim).mkString("?", "&", "")) match {
-          case Success(params) => Some(params)
-          case Failure(e) => println("[Client.convertParams] failed to convert paramaters from Map to url params"); Some("")
-        }
-
-  private def convertFilters(filters: Map[String, String | Int | Boolean]): Option[String] =
-        Try(filters.map((x,y) => s""""$x":["$y"]""".trim).mkString("{", ",", "}")) match {
-          case Success(filters) => Some(filters)
-          case Failure(e) => println("[Client.convertFilters] failed to convert filters from Map to JsonString"); Some("")
-        }
-
-  private def formatRequest(request: Request, method: Method): String = {
-    request match {
-      case Request(endpoint, host, null, null, null, null) =>
-        val req = s"$method $endpoint HTTP/1.1\r\nHost: $host\r\n\r\n"
-        println(req)
-        req
-      case Request(endpoint, host, params, null, null, null) =>
-        val req = s"$method $endpoint${convertParams(params).get} HTTP/1.1\r\nHost: $host\r\n\r\n"
-        println(req)
-        req
-      case Request(endpoint, host, params, filters, null, null) =>
-        val req = s"$method $endpoint${convertParams(params).get}&filters=${convertFilters(filters).get} HTTP/1.1\r\nHost: $host\r\n\r\n"
-        println(req)
-        req
-      case Request(endpoint, host, params, null, body, null) =>
-        val req = s"$method $endpoint${convertParams(params).get} HTTP/1.1\r\nHost: $host\r\nContent-Type: application/json\r\nContent-Length: ${body.length}\r\n\r\n$body"
-        println(req)
-        req
-      case Request(endpoint, host, params, null, body, auth) =>
-        val req = s"""$method $endpoint${convertParams(params).get}
-        HTTP/1.1\r\nHost: $host\r\n
-        X-Registry-Auth: ${encodeBase64(auth)}\r\n
-        Content-Type: application/json\r\n
-        Content-Length: ${body.length}\r\n\r\n$body""".trim
-        println(req)
-        req
-    }
-  }
-
-  private def encodeBase64(auth: Map[String, String]): String =
-    Base64.getEncoder.encodeToString(
-      auth.map((x,y) => s""""$x":"$y"""".trim)
-        .mkString("{", ",", "}")
-        .getBytes(StandardCharsets.UTF_8)
-      )
-
-  private def decodeBase64(msg: String): String = {
-    val decoded = Base64.getDecoder.decode(msg)
-    new String(decoded, StandardCharsets.UTF_8)
   }
 
   def close(): Unit = release()
@@ -171,8 +170,10 @@ class Socket(path: Path){
   private val _file = Try(new java.io.File(path.path)) match {
     case Success(fileAddress) => fileAddress
     case Failure(e) => e match {
-      case e: NullPointerException => throw new IOException(s"[Socket]: Could not find file $path\n$e") with NoStackTrace
-      case e: IllegalArgumentException => throw new IOException(s"[Socket]: Could not find file $path\n$e") with NoStackTrace
+      case e: NullPointerException =>
+        throw new IOException(s"[Socket]: Could not find file $path\n$e") with NoStackTrace
+      case e: IllegalArgumentException =>
+        throw new IOException(s"[Socket]: Could not find file $path\n$e") with NoStackTrace
     }
   }
   private val _socketAddress = new UnixSocketAddress(_file)
@@ -210,3 +211,4 @@ class Socket(path: Path){
   protected def write(request: String): Unit = { _writer.write(request); _writer.flush() }
   protected def release(): Unit = { _channel.close(); _writer.close(); _reader.close() }
 }
+

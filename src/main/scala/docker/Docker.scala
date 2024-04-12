@@ -1,11 +1,9 @@
 package docker
 
 import upickle.default._
-import client._
-
+import client.{HttpSocket, Header, Request, Path}
 import scala.util.{Failure, Success, Try}
-import java.nio.CharBuffer
-import geny.Generator.End
+import java.net.HttpCookie
 
 /*
 -------------- TODO LONGTERM ---------------------
@@ -24,27 +22,30 @@ import geny.Generator.End
 4. finish all container related endpoints
 */
 
+type Filters = Map[String, String | Int | Boolean]
 
 
-class Docker(path: String, hostAddress: String) {
-  private lazy val _containersEndpoint = "/v1.43/containers/json"
-  private lazy val _createContainersEndpoint = "/v1.43/containers/create"
-  private lazy val _imagesEndpoint = "/v1.43/images/json"
-  private lazy val _networksEndpoint = "/v1.43/networks"
-  private lazy val _volumesEndpoint = "/v1.43/volumes"
-  private lazy val _host = hostAddress
-  private given Path(path)
-  private val _http: HttpSocket = new HttpSocket
+private object Serializer {
+  def deserialize[T: Reader](jsonString: String): Try[T] = Try(upickle.default.read[T](jsonString))
+  def serialize[T: Writer](caseClass: T): Try[String] = Try(upickle.default.write[T](caseClass))
+}
 
-  private def deserialize[T: Reader](jsonString: String): Try[T] = Try(upickle.default.read[T](jsonString))
-  private def serialize[T: Writer](caseClass: T): Try[String] = Try(upickle.default.write[T](caseClass))
+class HttpDockerClient(val path: Option[String], val host: Option[String]) {
+  // parsing
+  // interacting with HttpSocket class
+  val socket = path match {
+    case Some(path) => new HttpSocket(Path(path))
+    case _ => throw new RuntimeException
+  }
 
-  def close(): Unit = _http.close()
+  val _host = host match {
+    case Some(host) => host
+    case _ => throw new RuntimeException
+  }
 
-  // -- for now this will return the responseString if it failes to parse
   def send[T: Reader](requestBody: Request, request: (Request => (Option[Header], Option[String]))): Option[T] = {
     request(requestBody) match {
-      case (Some(header), Some(body)) => deserialize[T](body) match {
+      case (Some(header), Some(body)) => Serializer.deserialize[T](body) match {
         case Success(bodyContent) => Option(bodyContent)
         case Failure(e) => println(s"[Docker.send]: failed to deserialize \n $e"); None
       }
@@ -53,11 +54,26 @@ class Docker(path: String, hostAddress: String) {
     }
   }
 
+  def close(): Unit = socket.close()
+}
+
+
+class Docker(implicit http: HttpDockerClient){
+  private final val _containersEndpoint = "/v1.43/containers/json"
+  private final val _createContainersEndpoint = "/v1.43/containers/create"
+  private final val _imagesEndpoint = "/v1.43/images/json"
+  private final val _networksEndpoint = "/v1.43/networks"
+  private final val _volumesEndpoint = "/v1.43/volumes"
+
+
+
+  // -- for now this will return the responseString if it failes to parse
+
 // /v1.43/info
   /*--work on params and filters--*/
   def version(): Option[String] = {
-    val req = Request("/v1.43/info", _host)
-    val (header, body) = _http.get(req)
+    val req = Request("/v1.43/info", http._host)
+    val (header, body) = http.socket.get(req)
     body match {
     case Some(body) => Some(body)
     case None => None
@@ -69,70 +85,83 @@ class Docker(path: String, hostAddress: String) {
   // /v1.43/images/json
   /*--done working with this endpoint--*/
   def listImages(listAll: Boolean = false, sharedSize: Boolean = false, digets: Boolean = false): Option[List[Image]] =
-                   send[List[Image]](Request(_imagesEndpoint, _host, Map("all" -> listAll,
+                   http.send[List[Image]](Request(_imagesEndpoint, http._host, Map("all" -> listAll,
                                                                          "shared-size" -> false,
-                                                                         "digest" -> false)), _http.get)
+                                                                         "digest" -> false)), http.socket.get)
   /*--done working with this endpoint--*/
 
   /* -------------- Networks ------------*/
   // /v1.43/networks
   /*--work on params and filters (filters are not working)--*/
-  def listNetworks(filters: Map[String, String | Int | Boolean] = null) =
-    send[List[Network]](Request(_networksEndpoint, _host, filters = filters), _http.get)
+  def listNetworks(filters: Filters = Map()): Option[List[Network]] =
+    http.send[List[Network]](Request(_networksEndpoint, http._host, filters = filters), http.socket.get)
   /*--work on params and filters (filters are not working)--*/
 
   /* -------------- Volumes ------------*/
   // /v1.43/volumes
   /*--work on params and filters (filters are not working)--*/
-  def listVolumes(filters: Map[String, String | Int | Boolean] = null) =
-    send[List[Volumes]](Request(_volumesEndpoint, _host, filters = filters), _http.get)
+  def listVolumes(filters: Filters = Map()): Unit =
+    http.send[List[Volumes]](Request(_volumesEndpoint, http._host, filters = filters), http.socket.get)
   /*--work on params and filters (filters are not working)--*/
 
 
   /* -------------- Containers ------------*/
     // /v1.43/containers/create
     /*--work on params and filters--*/
-    def createContainer(name: String,
-                        hostname: String = null,
-                        user: String = null,
-                        config: PostContainer = null): Option[String] = {
-      serialize[PostContainer](config) match {
+    def createContainer(name: String, hostname: String = "", user: String = "", config: PostContainer = null): Option[String] = {
+      Serializer.serialize[PostContainer](config) match {
         case Success(containerConfig) =>
-          send[String](Request(_createContainersEndpoint, _host, Map("name" -> name), body = containerConfig), _http.post)
+          http.send[String](Request(_createContainersEndpoint, http._host, Map("name" -> name), body = containerConfig), http.socket.post)
         case Failure(e) => println(s"[Docker.Container.createContainer]: Failed to create a container with error:\n$e"); None
       }
     }
 
   // /v1.43/containers/json by default it will list all
-  def listContainers(listAll: Boolean = true,
-                     limit: Int = 0,
-                     getSize: Boolean = false,
-                     filters: Map[String, String | Int | Boolean] = null): Option[List[Container]] = 
-    send[List[Container]](Request(_containersEndpoint, _host, Map("all" -> listAll, "limit" -> limit, "size" -> getSize), filters), _http.get) 
+  def listContainers(listAll: Boolean = true, getSize: Boolean = false, filters: Filters = Map()): Option[List[Container]] = {
+    http.send[List[ContainerState]](Request(_containersEndpoint, http._host, Map("all" -> listAll, "size" -> getSize),
+      filters), http.socket.get) match {
+        case Some(containers) => {
+          Option(containers.map(x => 
+              new Container(http, x)
+              ))
+        }
+        case _ => Option(List())
+      }
+  }
 
   // for now just return the jsonString response
   // inspecting a container
   // /containers/<id>/json
   /*--work on params and filters--*/
-  def inspectContainer(id: String = "", size: Boolean = false) = {
-     if (id.isBlank) {
+  def inspectContainer(id: String = "", size: Boolean = false): Option[String] = {
+     if (id.isEmpty) {
        // check this later
        throw new RuntimeException("please porvide the a container id")
        None
      }
-     else send[String](Request("/v1.43/containers/"+id+"/json", _host, Map("size" -> size)), _http.get)
+     val (header, body) = http.socket.get(Request("/v1.43/containers/"+id+"/json", http._host, Map("size" -> size)))
+     body match {
+       case Some(body) => Some(body)
+       case None => None
+     }
   }
+
+  // get container by name or Id
 
   // listing processes running inside a container
   // /containers/<id>/top
   /*--work on params and filters--*/
-  def top(id: String = "", psArgs: String = "") = {
-     if (id.isBlank) {
+  def top(id: String = "", psArgs: String = ""): Option[String] = {
+     if (id.isEmpty) {
        // check this later
        throw new RuntimeException("please porvide a container id")
        None
      }
-     else send[Container](Request("/v1.43/containers/"+id+"/top", _host, Map("ps_args" -> psArgs)), _http.get)
+     val (header, body) = http.socket.get(Request("/v1.43/containers/"+id+"/top", http._host, Map("ps_args" -> psArgs)))
+     body match {
+       case Some(body) => Some(body)
+       case None => None
+     }
   }
 
   // getting container logs by ID
@@ -146,110 +175,71 @@ class Docker(path: String, hostAddress: String) {
            since: Int = 0,
            until: Int = 0,
            timestamps: Boolean = false,
-           tail: String = "all") = {
-     if (id.isBlank) {
+           tail: String = "all"): Option[String] = {
+     if (id.isEmpty) {
        // check this later
        throw new RuntimeException("please porvide a container id")
        None
      }
-     else send[Container](Request(s"/v1.43/containers/$id/logs", _host, Map("follow" -> follow,
-                                                                              "stdout" -> stdout,
-                                                                              "stderr" -> stderr,
-                                                                              "since" -> since,
-                                                                              "until" -> until,
-                                                                              "timestamps" -> timestamps,
-                                                                              "tail" -> tail)), _http.get)
+
+     val req = Request(s"/v1.43/containers/$id/logs", http._host, Map("follow" -> follow,
+       "stdout" -> stdout,
+       "stderr" -> stderr,
+       "since" -> since,
+       "until" -> until,
+       "timestamps" -> timestamps,
+       "tail" -> tail))
+     val (header, body) = http.socket.get(req)
+     body match {
+       case Some(body) => Some(body)
+       case None => None
+     }
   }
 
   // the output of this is to long and the format is not suitable
-  def listFsChanges(id: String = "") = {
-    if (id.isBlank()) {
-      throw new RuntimeException("please provide a container id")
-      None
-    } else send[Container](Request(s"/v1.43/containers/$id/changes", _host), _http.get)
+  def listFsChanges(id: String = ""): Option[String] = {
+    if id.isEmpty then throw new RuntimeException("please provide a container id")
+    else {
+     val (header, body) = http.socket.get(Request(s"/v1.43/containers/$id/changes", http._host))
+     body match {
+       case Some(body) => Some(body)
+       case None => None
+     }
+    }
   }
 
 
-  def exportContainer(id: String = "") = {
-    if (id.isBlank()) {
-      throw new RuntimeException("please provide a container id")
-      None
-    } else send[Container](Request(s"/v1.43/containers/$id/export", _host), _http.get)
+  def exportContainer(id: String = ""): Option[String] = {
+    if id.isEmpty then throw new RuntimeException("please provide a container id")
+    else {
+     val (header, body) = http.socket.get(Request(s"/v1.43/containers/$id/export", http._host))
+     body match {
+       case Some(body) => Some(body)
+       case None => None
+     }
+    }
   }
 
-  def listProcesses(id: String = "") = { if (id.isBlank) {
+  def listProcesses(id: String = ""): Unit = { if (id.isEmpty) {
       throw new RuntimeException("please provide ")
     }
   }
 
-  def containerStats(id: String = "", stream: Boolean = true, oneShot: Boolean = false) = {
-    if (id.isBlank) {
+  def containerStats(id: String = "", stream: Boolean = true, oneShot: Boolean = false): Option[Container] = {
+    if (id.isEmpty) {
       throw new RuntimeException("please provide a container ID")
-    } else send[Container](Request(s"/v1.44/containers/$id/stats", _host, Map("stream" -> stream, "one-shot" -> oneShot)), _http.get)
+    } else {
+      http.send[ContainerState](Request(
+        s"/v1.44/containers/$id/stats", http._host, Map("stream" -> stream, "one-shot" -> oneShot)
+      ), http.socket.get) match {
+        case Some(res) =>
+          Option(new Container(http, res))
+        case _ => throw new RuntimeException
+      }
+    }
   }
 
   // Container class
-  case class Port(IP: String = "", PrivatePort: Int = 0,
-      PublicPort: Int = 0, Type: String = "") derives ReadWriter
-
-  case class Driver(IPAMConfig: String, Links: String, Aliases: String, NetworkID: String,
-      EndpointID: String, Gateway: String, IPAddress: String, IPPrefixLen: Int,
-      IPv6Gateway: String, GlobalIPv6Address: String, GlobalIPv6PrefixLen: Int, MacAddress: String,
-      DriverOpts: String) derives ReadWriter
-
-  case class Mount(Type: String = "", Name: String = "", Source: String = "", Destination: String = "",
-      Driver: String = "", Mode: String = "", RW: Boolean = false, Propagation: String = "") derives ReadWriter
-
-  case class Container(Id: String, Names: List[String], Image: String, ImageID: String,
-    Command: String, Created: String, State: String, Status: String,
-    HostConfig: Map[String, String], NetworkSettings: Map[String, Map[String, Driver]] = null,
-    Ports: List[Port], Labels: Map[String, String], Mounts: List[Mount] = null) derives ReadWriter {
-      private lazy val _endpoint = "/v1.43/containers/"
-
-      /*--work on params and filters--*/
-      // POST /v1.43/containers/{id}/kill
-      // still working on this, should not return Unit
-      def stop(): Unit = {
-        if (this.Status.startsWith("Up")) {
-          val req = Request(_endpoint+this.Id.substring(0, 12)+"/kill", _host)
-          send[String](req, _http.post)
-        }
-
-        else return
-      }
-      
-      /*--work on params and filters--*/
-      // POST /v1.43/containers/{id}/start
-      // still working on this, should not return Unit
-      def start(): Unit = {
-        if (this.Status.startsWith("Exited")) {
-          val req = Request(_endpoint+this.Id+"/start", _host)
-          send[String](req, _http.post)
-        }
-
-        else return
-      }
-      
-      // /v1.43/containers/{id}/json = docker inspect <container_id>
-      // still working on this, should not return Unit
-
-      /*--work on params and filters--*/
-      // POST /v1.43/containers/{id}/restart
-      def restart(): Unit = {
-          val req = Request(_endpoint+this.Id+"/restart", _host)
-          send[String](req, _http.post)
-        }
-      
-      /*--work on params and filters--*/
-      // DELETE /v1.43/containers/{id}/
-      def remove(): Unit = {
-          val req = Request(_endpoint+this.Id, _host)
-          send[String](req, _http.delete)
-        }
-
-      //    def stop(): Unit = sendRequest[String]("POST", s"${_endpoint}/${this.Id}/stop")
-
-      }
     // Container class
 
       // Image class
@@ -262,9 +252,10 @@ class Docker(path: String, hostAddress: String) {
                    VirtualSize: Long,
                    Labels: Map[String, String],
                    Containers: Int) derives ReadWriter
-  // Image class
+                    // Image class
+                    //
 
-  // Network class
+    // Network class
   case class Ipam(Driver: String = "",
                   Option: String = "",
                   Config: List[Map[String, String]] = List(Map())) derives ReadWriter
@@ -283,11 +274,11 @@ class Docker(path: String, hostAddress: String) {
                      Containers: Map[String, String] = Map(),
                      Options: Map[String, String] = Map(),
                      Labels: Map[String, String] = Map()) derives ReadWriter
-  // Network class
+                      // Network class
 
-  // Volumes class
+    // Volumes class
   case class AccessibilityRequirements(Requisite: List[Map[String, String]],
-                                       Preferred: List[Map[String, String]]) derives ReadWriter
+      Preferred: List[Map[String, String]]) derives ReadWriter
 
   case class AccessMode(Scope: String,
                         Sharing: String,
@@ -321,14 +312,9 @@ class Docker(path: String, hostAddress: String) {
                      Labels: Map[String, String],
                      Mountpoint: String,
                      Name: String,
-                     Options: Map[String, String] = null,
+                     Options: Map[String, String] = Map(),
                      Scope: String) derives ReadWriter
 
-
-  case class VolumesWrapper(Volumes: List[Volumes], Warnings: List[String] = null) derives ReadWriter
-
-  // Volumes class
-  
   case class HealthConfig(Test: List[String],
                           Interval: Int,
                           Timeout: Int,
@@ -379,9 +365,5 @@ class Docker(path: String, hostAddress: String) {
                            StopSignal: String = "",
                            StopTimeout: Int = 10,
                            HostConfig: HostConfig = null,
-//                           HealthConfig: HealthConfig = null,
-//                           ArgsEscaped: Boolean,
-//                           OnBuild: List[String] = null,
-//                           Shell: List[String] = null,
                            NetworkingConfig: Map[String, EndpointSettings] = Map()) derives ReadWriter
 }

@@ -1,50 +1,55 @@
-import docker.Docker
+import docker._
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object Main {
   def api(docker: Docker): Unit = {
+    docker.listContainers().get foreach { container =>
+      container.stop()
+    }
     // docker version
     // println(docker.version())
-    // list containers
+
     //docker.listImages(true, true, true).get.foreach(println)
-    //val filters = Map("ancestor" -> "apache/airflow:2.8.1", "name" -> "airflow-airflow-scheduler-1")
-    //docker.listContainers(filters=filters).get match {
-      //case null => println("no containers")
-      //case containers => containers.foreach { x =>
-       //println(x.Names)
-      //}
+
+    // VVVV this works VVVV
+    //val filters = Map("name" -> "airflow-airflow-webserver-1", "ancestor" -> "apache/airflow:2.7.3")
+    // list containers
+    //docker.listContainers().get match {
+    //case null => println("no containers")
+    //case containers => containers.foreach { x =>
+    //println(x.Names)
     //}
-    
-    //val filters = Map("dangling" -> true, "driver" -> "bridge", "type" -> "builtin")
-    //docker.listNetworks(filters).get.foreach(println)
-    //// stop all containers
-    //docker.listContainers().get foreach { container =>
-      //container.stop()
     //}
+
+    //val filters = Map("name" -> "airflow_default", "driver" -> "bridge")
+    //docker.listNetworks().get.foreach(x => println(x.Name))
 
     // -- filters are not working
     //val filters = Map("driver" -> "local")
     //docker.listVolumes(filters)
     // -- filters are not working
-    
+
     //// start all containers
     //docker.listContainers().get foreach { container =>
-      //container.start()
+    //container.stop()
     //}
 
     // restart all containers
     //docker.listContainers().get foreach { container =>
-      //container.restart()
+    //container.restart()
     //}
-    
+
+    // kill a container
     //// get container by name
-        //val modestGagarin = docker.getContainer("modest_gagarin")
-        //modestGagarin match {
-          //case Some(container) => println(container)
-          //case _ => println("name or id is not valid")
-        //}
+    //val modestGagarin = docker.getContainer("modest_gagarin")
+    //modestGagarin match {
+    //case Some(container) => println(container)
+    //case _ => println("name or id is not valid")
+    //}
 
     //// search by id
-        //val kafka = docker.getContainer(id = "4e747fd8616a")
+    //val kafka = docker.getContainer(id = "4e747fd8616a")
     ////    println("----------------------")
     ////    val kafka2 = docker.getContainer(id = "4e747fd8616a")
     ////    println("----------------------")
@@ -61,23 +66,43 @@ object Main {
 
     // trying create Container
     //docker.createContainer(
-      //name = "tito",
-      //config = docker.PostContainer(
-        //Hostname = "zmegri",
-        //Cmd = List("ping", "google.com"),
-        //Image = "hello-world"
-      //)
+    //name = "tito",
+    //config = docker.PostContainer(
+    //Hostname = "zmegri",
+    //Cmd = List("ping", "google.com"),
+    //Image = "hello-world"
     //)
-  
-  // inspecting a container
-  //docker.inspectContainer(id = "e5a7fb66e17c", size = true) match {
-    //case Some(inspection) => 
-      //println("found a inspections")
-      //println(inspection)
-    //case None => println("no container found")
-  //}
+    //)
 
-  // listing processes running inside a container
+    // inspecting a container
+    //    docker.inspectContainer(id = "134689394a6c", size = true) match {
+    //      case Some(inspection) =>
+    //        println("found a inspections")
+    //        println(inspection)
+    //      case None =>
+    //        println("no container found")
+    //    }
+
+    // stop containers
+    //docker.listContainers().get match {
+    //case null => println("no containers")
+    //case containers => containers.foreach { x =>
+    //val f = Future(x.start())
+    //Thread.sleep(500)
+    //f.foreach(println)
+    //}
+    //}
+
+    // start containers
+    docker.listContainers().get match {
+      case null => println("no containers")
+      case containers => containers.foreach { x =>
+        val f = Future(x.getContainer.Names)
+        f.foreach(println)
+      }
+    }
+
+    // listing processes running inside a container
   // /containers/<id>/top
    //docker.top(id = "fcfda7fcbb31", psArgs = "a") match {
      //case Some(processes) => 
@@ -113,23 +138,26 @@ object Main {
   //}
 
   // get container Stats
-  docker.containerStats(id = "fcfda7fcbb31", stream = false) match {
-    case Some(value) => 
-      println(s"found something")
-      println(value)
-    case none => println("nothing")
-  }
+  //docker.containerStats(id = "a99770fe0f6a", stream = true) match {
+    //case Some(value) => 
+      //println(s"found something")
+      //println(value)
+    //case none => println("nothing")
+  //}
 
+  // Todays work
+  /**/
 }
 
   def main(args: Array[String]): Unit = {
     // connecting to docker
-    val docker: Docker = new Docker("/var/run/docker.sock", "localhost")
+    implicit val http: HttpDockerClient = new HttpDockerClient(Some("/var/run/docker.sock"), Some("localhost"))
+    val docker: Docker = new Docker
 
     // trying methods in the api
     api(docker)
 
     // release resources
-    docker.close()
   }
 }
+
