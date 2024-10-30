@@ -76,8 +76,8 @@ to interact with the Docker remote API use a Docker class instance
 `docker.listContainers().get foreach(_.start())`
 
 ## Todos
-- [] Implement HTTP support
+- [x] Implement HTTP support
 - [] Implement secure connection (HTTPS)
 - [] Add more endpoints
-- [] Work on filters and parameters of each endpoint
+- [x] Work on filters and parameters of each endpoint
 - [] Add X-Registry-Auth for authenticating to docker
