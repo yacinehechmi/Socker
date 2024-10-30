@@ -20,7 +20,8 @@ Still not available on the [Maven repository](https://mvnrepository.com/)
 
 ## Usage
 - Connecting to Docker through a Unix Domain Socket
-`val docker: Docker = new Docker("/var/run/docker.sock", "localhost")`
+` implicit val socket: Client = new Client(Some("/var/run/docker.sock"), Some("localhost"))
+    val docker: Docker = new Docker`
 
 to interact with the Docker remote API use a Docker class instance
 - Using the Docker Class instance
